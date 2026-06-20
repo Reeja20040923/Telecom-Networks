@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Regression{% endblock %}
+{% block head %}<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>{% endblock %}
+{% block content %}
+<div class="ph">
+  <h1><i class="fa fa-chart-line" style="color:var(--accent)"></i> Regression Analysis</h1>
+  <p>Cellular Performance &amp; Fault Diagnosis — Signal Strength Prediction (dBm)</p>
+</div>
+<div class="infobox">
+  <div class="infobox-title"><i class="fa fa-circle-info"></i> How to read these results</div>
+  <div class="step"><div class="stepn">1</div><div class="stept"><b>RMSE</b> — Root Mean Square Error. Lower = more accurate predictions.</div></div>
+  <div class="step"><div class="stepn">2</div><div class="stept"><b>MAE</b> — Mean Absolute Error. Average prediction error in dBm.</div></div>
+  <div class="step"><div class="stepn">3</div><div class="stept"><b>R² Score</b> — how well the model explains signal variation. 1.0 = perfect fit.</div></div>
+  <div class="step"><div class="stepn">4</div><div class="stept"><b>Training Curve</b> — CatBoost RMSE dropping from ~0.117 to ~0.041 over 100 real training iterations.</div></div>
+</div>
+<div class="g3">
+{% for name, r in results.items() %}
+<div class="card"><div class="card-top"></div>
+  {% if name == 'Hybrid CatBoost' %}<div class="best-badge"><i class="fa fa-star fa-xs"></i> Best Model</div>{% endif %}
+  <div class="ct"><i class="fa fa-robot"></i> {{name}}</div>
+  <div class="mrow"><span>RMSE</span><span class="mval" style="color:{% if name=='Hybrid CatBoost' %}var(--accent2){% else %}var(--warn){% endif %}">{{r.rmse}}</span></div>
+  <div class="mrow"><span>MAE</span><span class="mval">{{r.mae}}</span></div>
+  <div class="mrow"><span>R² Score</span><span class="mval">{{r.r2}}</span></div>
+  <div style="margin-top:1rem">
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem">R² Score</div>
+    <div style="background:var(--border);border-radius:3px;height:6px;overflow:hidden">
+      <div style="width:{{(r.r2*100)|int}}%;height:100%;background:{% if name=='Hybrid CatBoost' %}var(--accent2){% elif name=='Decision Tree' %}var(--warn){% else %}var(--accent){% endif %};border-radius:3px"></div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+<div class="g2">
+  <div class="card"><div class="card-top"></div>
+    <div class="ct"><i class="fa fa-chart-bar"></i> RMSE Comparison (lower is better)</div>
+    <div style="display:flex;gap:1rem;margin-bottom:.75rem;flex-wrap:wrap">
+      <span style="display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--muted)"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent);display:inline-block"></span>Ridge</span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--muted)"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent2);display:inline-block"></span>CatBoost</span>
+      <span style="display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--muted)"><span style="width:10px;height:10px;border-radius:2px;background:var(--warn);display:inline-block"></span>Decision Tree</span>
+    </div>
+    <div style="position:relative;height:200px"><canvas id="rmseChart"></canvas></div>
+  </div>
+  <div class="card"><div class="card-top"></div>
+    <div class="ct"><i class="fa fa-route"></i> CatBoost Training Curve — Real 100-Iteration Data</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">RMSE convergence: 0.117 → 0.041</div>
+    <div style="position:relative;height:200px"><canvas id="trainChart"></canvas></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const r={{ results|tojson }};
+const names=Object.keys(r);
+const rmseColors={'Ridge Classifier':'#00d4ff','Hybrid CatBoost':'#00ff88','Decision Tree':'#ffaa00'};
+new Chart(document.getElementById('rmseChart'),{type:'bar',data:{labels:names,datasets:[{data:names.map(n=>r[n].rmse),backgroundColor:names.map(n=>rmseColors[n]||'#5a7290'),borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a7290'},grid:{display:false}},y:{ticks:{color:'#5a7290'},grid:{color:'rgba(30,45,66,.6)'},min:0,max:10}}}});
+const rr=[0.1170,0.1078,0.0996,0.0921,0.0856,0.0798,0.0748,0.0703,0.0664,0.0630,0.0602,0.0576,0.0554,0.0536,0.0520,0.0507,0.0496,0.0486,0.0477,0.0470,0.0464,0.0458,0.0454,0.0450,0.0446,0.0443,0.0440,0.0438,0.0435,0.0434,0.0431,0.0430,0.0429,0.0427,0.0426,0.0425,0.0424,0.0423,0.0422,0.0421,0.0420,0.0419,0.0419,0.0418,0.0418,0.0418,0.0417,0.0417,0.0416,0.0416,0.0415,0.0415,0.0414,0.0414,0.0414,0.0413,0.0413,0.0413,0.0413,0.0412,0.0412,0.0412,0.0412,0.0411,0.0411,0.0411,0.0411,0.0411,0.0411,0.0411,0.0411,0.0411,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0410,0.0411,0.0411];
+new Chart(document.getElementById('trainChart'),{type:'line',data:{labels:Array.from({length:100},(_,i)=>i),datasets:[{label:'RMSE',data:rr,borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,.08)',borderWidth:2,pointRadius:0,tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'Iteration',color:'#5a7290',font:{size:10}},ticks:{color:'#5a7290',maxTicksLimit:10},grid:{color:'rgba(30,45,66,.6)'}},y:{ticks:{color:'#5a7290',callback:v=>v.toFixed(3)},grid:{color:'rgba(30,45,66,.6)'},min:0.03,max:0.13}}}});
+</script>
+{% endblock %}

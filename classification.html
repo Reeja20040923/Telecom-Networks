@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Classification{% endblock %}
+{% block head %}<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>{% endblock %}
+{% block content %}
+<div class="ph">
+  <h1><i class="fa fa-tags" style="color:var(--accent)"></i> Classification Analysis</h1>
+  <p>Cellular Performance &amp; Fault Diagnosis — Network Type Prediction (3G / 4G / 5G / LTE)</p>
+</div>
+<div class="infobox">
+  <div class="infobox-title"><i class="fa fa-circle-info"></i> How to read these results</div>
+  <div class="step"><div class="stepn">1</div><div class="stept"><b>Accuracy</b> — overall percentage of correct predictions. Higher is better.</div></div>
+  <div class="step"><div class="stepn">2</div><div class="stept"><b>Precision</b> — when the model says "4G", how often is it correct? High precision = fewer false positives.</div></div>
+  <div class="step"><div class="stepn">3</div><div class="stept"><b>Recall</b> — of all actual 4G records, how many did the model correctly identify?</div></div>
+  <div class="step"><div class="stepn">4</div><div class="stept"><b>F1 Score</b> — balanced average of Precision and Recall. Best single metric for comparison.</div></div>
+</div>
+<div class="g3">
+{% for name, r in results.items() %}
+<div class="card"><div class="card-top"></div>
+  {% if name == 'Hybrid CatBoost' %}<div class="best-badge"><i class="fa fa-star fa-xs"></i> Best Model</div>{% endif %}
+  <div class="ct"><i class="fa fa-robot"></i> {{name}}</div>
+  <div class="mrow"><span>Accuracy</span><span class="mval" style="color:var(--accent2)">{{r.accuracy}}%</span></div>
+  <div class="mrow"><span>Precision</span><span class="mval">{{r.precision}}%</span></div>
+  <div class="mrow"><span>Recall</span><span class="mval">{{r.recall}}%</span></div>
+  <div class="mrow"><span>F1 Score</span><span class="mval">{{r.f1}}%</span></div>
+  <div style="margin-top:1rem">
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:.3rem">Accuracy</div>
+    <div style="background:var(--border);border-radius:3px;height:6px;overflow:hidden">
+      <div style="width:{{r.accuracy}}%;height:100%;background:{% if name=='Hybrid CatBoost' %}var(--accent2){% elif name=='Decision Tree' %}var(--warn){% else %}var(--accent){% endif %};border-radius:3px"></div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+<div class="card"><div class="card-top"></div>
+  <div class="ct"><i class="fa fa-chart-bar"></i> Full Metrics Comparison</div>
+  <div style="display:flex;gap:1rem;margin-bottom:.75rem;flex-wrap:wrap">
+    <span style="display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--muted)"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent);display:inline-block"></span>Ridge Classifier</span>
+    <span style="display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--muted)"><span style="width:10px;height:10px;border-radius:2px;background:var(--accent2);display:inline-block"></span>Hybrid CatBoost</span>
+    <span style="display:flex;align-items:center;gap:4px;font-size:.75rem;color:var(--muted)"><span style="width:10px;height:10px;border-radius:2px;background:var(--warn);display:inline-block"></span>Decision Tree</span>
+  </div>
+  <div style="position:relative;height:240px"><canvas id="clsChart"></canvas></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const r={{ results|tojson }};
+const labels=['Accuracy','Precision','Recall','F1 Score'];
+const keys=['accuracy','precision','recall','f1'];
+const names=Object.keys(r);
+const colors={'Ridge Classifier':'#00d4ff','Hybrid CatBoost':'#00ff88','Decision Tree':'#ffaa00'};
+new Chart(document.getElementById('clsChart'),{type:'bar',data:{labels,datasets:names.map(n=>({label:n,data:keys.map(k=>r[n][k]),backgroundColor:colors[n]||'#5a7290',borderRadius:4,borderSkipped:false}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a7290',font:{size:11}},grid:{display:false}},y:{ticks:{color:'#5a7290'},grid:{color:'rgba(30,45,66,.6)'},min:75,max:95}}}});
+</script>
+{% endblock %}

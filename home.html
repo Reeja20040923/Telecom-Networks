@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div class="ph">
+  <h1><i class="fa fa-broadcast-tower" style="color:var(--accent)"></i> Cellular Performance &amp; Fault Diagnosis</h1>
+  <p>Multi-model ML platform for signal analysis, network type classification, and fault detection</p>
+</div>
+
+<div class="infobox">
+  <div class="infobox-title"><i class="fa fa-circle-info"></i> How to use this platform</div>
+  <div class="step"><div class="stepn">1</div><div class="stept">Go to <b>EDA</b> to explore signal distributions, locality patterns and device comparisons.</div></div>
+  <div class="step"><div class="stepn">2</div><div class="stept">Visit <b>Classification</b> to compare model accuracy predicting Network Type (3G/4G/5G/LTE).</div></div>
+  <div class="step"><div class="stepn">3</div><div class="stept">Visit <b>Regression</b> to compare models predicting Signal Strength using RMSE, MAE, R².</div></div>
+  <div class="step"><div class="stepn">4</div><div class="stept"><b>Prediction → Manual:</b> Select locality → Auto-Fill → Run Prediction instantly.</div></div>
+  <div class="step"><div class="stepn">5</div><div class="stept"><b>Prediction → CSV Upload:</b> Upload CSV → Select one locality → See fault insights → Click "Watch Live".</div></div>
+</div>
+
+{% if data_info %}
+<div class="krow">
+  <div class="ktile"><div class="klbl">Total Records</div><div class="kval">{{ data_info.total_records }}</div></div>
+  <div class="ktile"><div class="klbl">Localities</div><div class="kval">{{ data_info.localities }}</div></div>
+  <div class="ktile"><div class="klbl">Network Types</div><div class="kval">{{ data_info.network_types|length }}</div></div>
+  <div class="ktile"><div class="klbl">Test Records</div><div class="kval">{{ data_info.test_records }}</div></div>
+</div>
+<div class="g2">
+  <div class="card"><div class="card-top"></div>
+    <div class="ct"><i class="fa fa-database"></i> Dataset Info</div>
+    <div style="margin-bottom:.75rem">{% for nt in data_info.network_types %}<span class="badge b-info" style="margin-right:.3rem">{{nt}}</span>{% endfor %}</div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">Measurement Devices</div>
+    <span class="badge b-info" style="margin-right:.3rem">BB60C</span>
+    <span class="badge b-info" style="margin-right:.3rem">srsRAN</span>
+    <span class="badge b-info">BladeRFxA9</span>
+  </div>
+  <div class="card"><div class="card-top"></div>
+    <div class="ct"><i class="fa fa-cube"></i> Trained Models</div>
+    {% for m in models %}
+    <div class="mrow"><span>{{m}}</span><span class="badge b-ok">Ready</span></div>
+    {% endfor %}
+  </div>
+</div>
+
+<div style="margin-top:.5rem">
+  <div class="ct" style="color:var(--accent);font-size:.65rem;letter-spacing:.1em;margin-bottom:1rem">◈ System Architecture Pipeline</div>
+  <div class="card"><div class="card-top"></div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:center">
+      <div style="background:var(--surface);border:1px solid var(--accent2);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:.55rem;color:var(--accent2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.07em">Devices</div>
+        <div style="font-size:.65rem;color:var(--text)">BB60C<br>srsRAN<br>BladeRF</div>
+      </div>
+      <div style="text-align:center;color:var(--muted);font-size:1.1rem">→</div>
+      <div style="background:var(--surface);border:1px solid var(--accent2);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:.55rem;color:var(--accent2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.07em">Collect</div>
+        <div style="font-size:.65rem;color:var(--text)">Signal<br>Quality<br>Latency</div>
+      </div>
+      <div style="text-align:center;color:var(--muted);font-size:1.1rem">→</div>
+      <div style="background:var(--surface);border:1px solid var(--accent2);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:.55rem;color:var(--accent2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.07em">Process</div>
+        <div style="font-size:.65rem;color:var(--text)">Scale<br>Encode<br>Clean</div>
+      </div>
+      <div style="text-align:center;color:var(--muted);font-size:1.1rem">→</div>
+      <div style="background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:.55rem;color:var(--accent);margin-bottom:4px;text-transform:uppercase;letter-spacing:.07em">Diagnose</div>
+        <div style="font-size:.65rem;color:var(--text)">CatBoost<br>Ridge<br>DecTree</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-top:1rem">
+      <div style="background:var(--surface);border-radius:6px;padding:.75rem;text-align:center;border-left:3px solid var(--accent2)">
+        <div style="font-size:.62rem;color:var(--muted);margin-bottom:3px">Performance</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--accent2)">Network Type</div>
+        <div style="font-size:.62rem;color:var(--muted)">3G / 4G / 5G / LTE</div>
+      </div>
+      <div style="background:var(--surface);border-radius:6px;padding:.75rem;text-align:center;border-left:3px solid var(--accent)">
+        <div style="font-size:.62rem;color:var(--muted);margin-bottom:3px">Signal</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--accent)">Strength (dBm)</div>
+        <div style="font-size:.62rem;color:var(--muted)">Regression output</div>
+      </div>
+      <div style="background:var(--surface);border-radius:6px;padding:.75rem;text-align:center;border-left:3px solid var(--danger)">
+        <div style="font-size:.62rem;color:var(--muted);margin-bottom:3px">Fault</div>
+        <div style="font-size:.78rem;font-weight:600;color:var(--danger)">Diagnosis Alert</div>
+        <div style="font-size:.62rem;color:var(--muted)">Good / Fair / Critical</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ct" style="margin-top:1.5rem;margin-bottom:1rem">Upload New Data</div>
+<div class="g2">
+  <div class="card"><div class="card-top"></div>
+    <div class="ct">Training Data</div>
+    <form method="POST" action="/upload_data" enctype="multipart/form-data">
+      <input type="hidden" name="file_type" value="train"/>
+      <div class="fg"><label>CSV File</label><input type="file" name="data_file" accept=".csv"/></div>
+      <button type="submit" class="btn btn-p"><i class="fa fa-upload"></i> Upload Training CSV</button>
+    </form>
+  </div>
+  <div class="card"><div class="card-top"></div>
+    <div class="ct">Test Data</div>
+    <form method="POST" action="/upload_data" enctype="multipart/form-data">
+      <input type="hidden" name="file_type" value="test"/>
+      <div class="fg"><label>CSV File</label><input type="file" name="data_file" accept=".csv"/></div>
+      <button type="submit" class="btn btn-g"><i class="fa fa-upload"></i> Upload Test CSV</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card"><div class="card-top"></div>
+  <p style="color:var(--warn)"><i class="fa fa-triangle-exclamation"></i> Data not loaded. Place CSV files in the <code>data/</code> directory.</p>
+</div>
+{% endif %}
+{% endblock %}

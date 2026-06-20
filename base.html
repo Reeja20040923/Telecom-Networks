@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>{% block title %}CPFD{% endblock %} · Cellular Performance & Fault Diagnosis</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root{
+  --bg:#080c14;--surface:#0d1421;--card:#111927;--border:#1e2d42;
+  --accent:#00d4ff;--accent2:#00ff88;--warn:#ffaa00;--danger:#ff3d5a;
+  --text:#e2eaf5;--muted:#5a7290;
+  --font-mono:'Space Mono',monospace;--font-sans:'DM Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;display:flex;flex-direction:column}
+body::before{content:'';position:fixed;inset:0;z-index:0;background-image:linear-gradient(rgba(0,212,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+
+/* ── Navbar ── */
+nav{position:sticky;top:0;z-index:100;background:rgba(8,12,20,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 1.5rem;height:56px;gap:0}
+.brand{display:flex;align-items:center;gap:.5rem;margin-right:1.8rem;text-decoration:none}
+.brand-icon{font-size:1rem;color:var(--accent)}
+.brand-text{font-family:var(--font-mono);font-size:.82rem;font-weight:700;display:flex;align-items:center;gap:.35rem;letter-spacing:.02em}
+.brand-cp{color:var(--accent)}
+.brand-amp{color:#e2eaf5;font-weight:400}
+.brand-fd{color:var(--accent2)}
+nav a{color:var(--muted);text-decoration:none;font-size:.78rem;font-weight:500;padding:0 .85rem;height:56px;display:flex;align-items:center;gap:.3rem;border-bottom:2px solid transparent;transition:all .2s}
+nav a:hover,nav a.active{color:var(--accent);border-bottom-color:var(--accent)}
+.nav-spacer{flex:1}
+.live-badge{display:flex;align-items:center;gap:.4rem;font-family:var(--font-mono);font-size:.68rem;color:var(--accent2);padding:.28rem .7rem;border:1px solid rgba(0,255,136,.2);border-radius:20px;background:rgba(0,255,136,.05)}
+.dot-live{width:7px;height:7px;border-radius:50%;background:var(--accent2);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+
+/* ── Main ── */
+main{position:relative;z-index:1;flex:1;padding:1.75rem 2rem;max-width:1440px;margin:0 auto;width:100%}
+
+/* ── Cards ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.4rem;position:relative;overflow:hidden;margin-bottom:1rem}
+.card-top{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.ct{font-family:var(--font-mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.9rem;display:flex;align-items:center;gap:.4rem}
+
+/* ── KPI Tiles ── */
+.krow{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.ktile{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.1rem}
+.klbl{font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem}
+.kval{font-family:var(--font-mono);font-size:1.75rem;font-weight:700;color:var(--accent)}
+.kunit{font-size:.72rem;color:var(--muted)}
+.gauge{height:4px;background:var(--border);border-radius:2px;margin-top:.5rem;overflow:hidden}
+.gf{height:100%;border-radius:2px;transition:width .8s ease}
+.ga{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.gw{background:linear-gradient(90deg,var(--warn),#ff7a00)}
+.gd{background:linear-gradient(90deg,var(--danger),#ff6060)}
+
+/* ── Grids ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.68rem;font-weight:600;letter-spacing:.04em}
+.b-ok{background:rgba(0,255,136,.12);color:var(--accent2);border:1px solid rgba(0,255,136,.2)}
+.b-info{background:rgba(0,212,255,.12);color:var(--accent);border:1px solid rgba(0,212,255,.2)}
+.b-warn{background:rgba(255,170,0,.12);color:var(--warn);border:1px solid rgba(255,170,0,.2)}
+.b-danger{background:rgba(255,61,90,.12);color:var(--danger);border:1px solid rgba(255,61,90,.2)}
+.best-badge{background:rgba(0,212,255,.1);color:var(--accent);border:1px solid rgba(0,212,255,.25);border-radius:4px;padding:.15rem .55rem;font-size:.62rem;font-weight:600;display:inline-block;margin-bottom:.6rem}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1.1rem;border-radius:6px;border:none;font-family:var(--font-sans);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s;text-decoration:none}
+.btn-p{background:var(--accent);color:#000}.btn-p:hover{background:#00bde8;transform:translateY(-1px)}
+.btn-g{background:transparent;color:var(--accent);border:1px solid var(--border)}.btn-g:hover{border-color:var(--accent);background:rgba(0,212,255,.06)}
+.btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:#e0324e}
+.btn-success{background:var(--accent2);color:#000}.btn-success:hover{background:#00e87a}
+
+/* ── Form ── */
+input,select,textarea{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:.5rem .8rem;font-size:.85rem;font-family:var(--font-sans);width:100%;transition:border-color .2s}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,212,255,.1)}
+input.autofilled{border-color:var(--accent2)!important;background:rgba(0,255,136,.05)!important;color:var(--accent2)}
+label{display:block;font-size:.72rem;color:var(--muted);margin-bottom:.25rem;letter-spacing:.04em}
+.fg{margin-bottom:.85rem}
+
+/* ── Info box ── */
+.infobox{background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.15);border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.25rem}
+.infobox-title{font-family:var(--font-mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:.6rem}
+.step{display:flex;gap:.75rem;align-items:flex-start;margin-bottom:.55rem}
+.stepn{width:20px;height:20px;border-radius:50%;background:rgba(0,212,255,.15);color:var(--accent);font-size:.68rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(0,212,255,.25)}
+.stept{font-size:.8rem;color:var(--muted);line-height:1.5}
+.stept b{color:var(--text)}
+
+/* ── Metric rows ── */
+.mrow{display:flex;justify-content:space-between;align-items:center;padding:.45rem 0;border-bottom:1px solid rgba(30,45,66,.4);font-size:.82rem}
+.mrow:last-child{border:none}
+.mval{font-family:var(--font-mono);font-weight:600}
+
+/* ── Page header ── */
+.ph{margin-bottom:1.5rem}
+.ph h1{font-family:var(--font-mono);font-size:1.2rem;color:var(--text)}
+.ph p{color:var(--muted);font-size:.85rem;margin-top:.3rem}
+
+/* ── Flash ── */
+.flash-msg{padding:.65rem 1rem;border-radius:6px;margin-bottom:1rem;font-size:.82rem;display:flex;align-items:center;gap:.5rem}
+.f-err{background:rgba(255,61,90,.1);color:#ff8a9b;border:1px solid rgba(255,61,90,.2)}
+.f-ok{background:rgba(0,255,136,.1);color:var(--accent2);border:1px solid rgba(0,255,136,.2)}
+.f-warn{background:rgba(255,170,0,.1);color:var(--warn);border:1px solid rgba(255,170,0,.2)}
+
+/* ── Table ── */
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{font-family:var(--font-mono);font-size:.63rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.55rem .75rem;border-bottom:1px solid var(--border);text-align:left}
+td{padding:.5rem .75rem;border-bottom:1px solid rgba(30,45,66,.5);color:var(--text)}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* ── Drop zone ── */
+.drop-zone{border:2px dashed var(--border);border-radius:8px;padding:1.5rem;text-align:center;cursor:pointer;transition:all .2s}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(0,212,255,.04)}
+.drop-zone.has-file{border-color:var(--accent2);background:rgba(0,255,136,.04)}
+
+/* ── Loc chips ── */
+.loc-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;background:var(--surface);border:1px solid var(--border);font-size:.75rem;cursor:pointer;transition:all .18s;margin:3px}
+.loc-chip:hover{border-color:var(--accent);color:var(--accent)}
+.loc-chip.sel{background:rgba(0,212,255,.12);border-color:var(--accent);color:var(--accent)}
+
+/* ── Live banner ── */
+.live-banner{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:.9rem 1.2rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem}
+.pulse-ring{width:10px;height:10px;border-radius:50%;background:var(--accent2);position:relative;flex-shrink:0}
+.pulse-ring::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--accent2);animation:pr 1.5s infinite}
+@keyframes pr{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(2.2)}}
+
+/* ── Stat boxes ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1rem}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.85rem;text-align:center}
+.stat-val{font-size:1.25rem;font-weight:700;font-family:var(--font-mono);line-height:1}
+.stat-lbl{font-size:.62rem;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
+
+/* ── Tabs ── */
+.tab-row{display:flex;gap:.5rem;margin-bottom:1.25rem}
+.tab-btn{padding:.45rem 1rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-sans);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s}
+.tab-btn.on{background:var(--accent);color:#000;border-color:var(--accent)}
+
+/* ── Auto-fill button & status ── */
+.btn-af{background:rgba(0,212,255,.1);color:var(--accent);border:1px solid rgba(0,212,255,.25);padding:.6rem;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer;width:100%;margin-top:.5rem;display:flex;align-items:center;justify-content:center;gap:.5rem;transition:all .2s}
+.btn-af:hover{background:rgba(0,212,255,.18)}
+.btn-af:disabled{opacity:.35;cursor:not-allowed}
+.af-status{background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);border-radius:6px;padding:.6rem .9rem;margin-top:.6rem;font-size:.75rem;color:var(--accent2);display:none;align-items:center;gap:.5rem}
+.af-status.show{display:flex}
+.spinner{width:13px;height:13px;border:2px solid rgba(0,212,255,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Fgrid ── */
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+
+/* ── Alert strips ── */
+.alert-strip{padding:.55rem .9rem;border-radius:0 5px 5px 0;font-size:.78rem;margin-bottom:.4rem;display:flex;align-items:center;gap:.55rem;animation:fi .3s}
+@keyframes fi{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+
+/* ── res-big ── */
+.res-big{font-family:var(--font-mono);font-size:2rem;font-weight:700;margin:.4rem 0;line-height:1.1}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+@media(max-width:900px){.krow,.g3,.g2{grid-template-columns:1fr}}
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<nav>
+  <a href="/" class="brand">
+    <span class="brand-icon"><i class="fa fa-broadcast-tower"></i></span>
+    <span class="brand-text">
+      <span class="brand-cp">Cellular Performance</span>
+      <span class="brand-amp">&amp;</span>
+      <span class="brand-fd">Fault Diagnosis</span>
+    </span>
+  </a>
+  <a href="/"               {% if request.endpoint=='home'           %}class="active"{% endif %}><i class="fa fa-house fa-xs"></i> Home</a>
+  <a href="/eda"            {% if request.endpoint=='eda'            %}class="active"{% endif %}><i class="fa fa-chart-bar fa-xs"></i> EDA</a>
+  <a href="/classification" {% if request.endpoint=='classification'  %}class="active"{% endif %}><i class="fa fa-tags fa-xs"></i> Classification</a>
+  <a href="/regression"     {% if request.endpoint=='regression'      %}class="active"{% endif %}><i class="fa fa-chart-line fa-xs"></i> Regression</a>
+  <a href="/prediction"     {% if request.endpoint=='prediction'       %}class="active"{% endif %}><i class="fa fa-brain fa-xs"></i> Prediction</a>
+  <a href="/dashboard"      {% if request.endpoint=='dashboard'        %}class="active"{% endif %}><i class="fa fa-gauge fa-xs"></i> Live</a>
+  <div class="nav-spacer"></div>
+  <div class="live-badge"><div class="dot-live"></div>LIVE</div>
+</nav>
+<main>
+  {% with msgs=get_flashed_messages(with_categories=true) %}
+    {% for cat,msg in msgs %}
+      <div class="flash-msg {% if cat=='error' %}f-err{% elif cat=='success' %}f-ok{% else %}f-warn{% endif %}">
+        <i class="fa fa-circle-info fa-xs"></i>{{ msg }}
+      </div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+{% block scripts %}{% endblock %}
+</body>
+</html>

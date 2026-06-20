@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Live Fault Monitoring{% endblock %}
+{% block head %}<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>{% endblock %}
+{% block content %}
+<div class="ph" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+  <div>
+    <h1><i class="fa fa-gauge" style="color:var(--accent)"></i> Live Fault Monitoring</h1>
+    <p>Cellular Performance &amp; Fault Diagnosis — real-time signal intelligence</p>
+  </div>
+  <div style="display:flex;gap:.75rem;align-items:center">
+    <span id="ts" style="font-family:var(--font-mono);font-size:.72rem;color:var(--muted)">—</span>
+    <button class="btn btn-d" onclick="clrAlerts()"><i class="fa fa-trash fa-xs"></i> Clear Faults</button>
+  </div>
+</div>
+
+<div class="infobox">
+  <div class="infobox-title"><i class="fa fa-circle-info"></i> Dashboard Guide</div>
+  <div class="step"><div class="stepn">1</div><div class="stept"><b>KPI tiles</b> show live averages. Gauge bars fill based on current values.</div></div>
+  <div class="step"><div class="stepn">2</div><div class="stept"><b>Fault Feed</b> — automatic alerts when signal drops below -90 dBm, latency exceeds 180 ms, or throughput falls below 1 Mbps.</div></div>
+  <div class="step"><div class="stepn">3</div><div class="stept">If you came from <b>CSV Upload → Watch Live</b>, the dashboard focuses on your selected locality only.</div></div>
+</div>
+
+<div id="live-banner" style="display:none" class="live-banner">
+  <div style="display:flex;align-items:center;gap:.75rem">
+    <div class="pulse-ring"></div>
+    <div>
+      <div style="font-size:.68rem;color:var(--muted)">Cellular Performance &amp; Fault Diagnosis — monitoring</div>
+      <div style="font-size:.95rem;font-weight:600;color:var(--accent)" id="live-loc-name">—</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:.75rem">
+    <span id="live-loc-nt" class="badge b-info">—</span>
+    <button onclick="clearFilter()" style="background:rgba(255,61,90,.1);color:var(--danger);border:1px solid rgba(255,61,90,.2);padding:.3rem .85rem;border-radius:5px;font-size:.7rem;cursor:pointer">✕ Clear filter</button>
+  </div>
+</div>
+
+<div class="krow">
+  <div class="ktile"><div class="klbl" id="lk1-lbl">Avg Signal</div><div><span class="kval" id="lk1">—</span><span class="kunit"> dBm</span></div><div class="gauge"><div class="gf ga" id="lg1" style="width:0%"></div></div></div>
+  <div class="ktile"><div class="klbl">Avg Latency</div><div><span class="kval" id="lk2">—</span><span class="kunit"> ms</span></div><div class="gauge"><div class="gf gw" id="lg2" style="width:0%"></div></div></div>
+  <div class="ktile"><div class="klbl">Avg Throughput</div><div><span class="kval" id="lk3">—</span><span class="kunit"> Mbps</span></div><div class="gauge"><div class="gf ga" id="lg3" style="width:0%"></div></div></div>
+  <div class="ktile"><div class="klbl">Faults Detected</div><div><span class="kval" id="lk4" style="color:var(--danger)">0</span></div><div class="gauge"><div class="gf gd" id="lg4" style="width:0%"></div></div></div>
+</div>
+
+<div class="g2">
+  <div class="card"><div class="card-top"></div>
+    <div class="ct" id="chart1-lbl"><i class="fa fa-wave-square"></i> Signal Strength Over Time</div>
+    <div style="position:relative;height:200px"><canvas id="sigChart"></canvas></div>
+  </div>
+  <div class="card"><div class="card-top"></div>
+    <div class="ct"><i class="fa fa-triangle-exclamation"></i> Fault Feed <span id="abadge" style="background:var(--danger);color:#fff;border-radius:50%;padding:1px 6px;font-size:.65rem;margin-left:.3rem">0</span></div>
+    <div id="afeed" style="max-height:210px;overflow-y:auto">
+      <p style="color:var(--muted);font-size:.8rem;text-align:center;padding:1.5rem 0">✓ No faults detected</p>
+    </div>
+  </div>
+</div>
+
+<div class="g2" id="extra-row" style="display:none;margin-top:1rem">
+  <div class="card"><div class="card-top"></div>
+    <div class="ct" id="chart2-lbl"><i class="fa fa-signal"></i> Signal Quality Over Time</div>
+    <div style="position:relative;height:160px"><canvas id="qChart"></canvas></div>
+  </div>
+  <div class="card"><div class="card-top"></div>
+    <div class="ct" id="chart3-lbl"><i class="fa fa-clock"></i> Latency Over Time</div>
+    <div style="position:relative;height:160px"><canvas id="ltChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:1rem"><div class="card-top"></div>
+  <div class="ct" id="table-lbl"><i class="fa fa-table"></i> Live Cellular Readings</div>
+  <div style="max-height:280px;overflow-y:auto">
+    <table>
+      <thead><tr><th>Time</th><th>Locality</th><th>Network</th><th>Signal (dBm)</th><th>Quality</th><th>Throughput</th><th>Latency</th><th>Fault Status</th></tr></thead>
+      <tbody id="ltbody">
+        {% for r in recent|reverse %}
+        <tr>
+          <td style="font-family:var(--font-mono);font-size:.72rem">{{r.timestamp}}</td>
+          <td>{{r.locality}}</td>
+          <td><span class="badge b-info">{{r.network_type}}</span></td>
+          <td style="font-family:var(--font-mono)">{{r.signal_strength}}</td>
+          <td>{{r.signal_quality}}%</td>
+          <td>{{r.throughput}} Mbps</td>
+          <td>{{r.latency}} ms</td>
+          <td>{% if r.signal_strength < -90 %}<span class="badge b-danger">Critical</span>{% elif r.signal_strength < -70 %}<span class="badge b-warn">Warning</span>{% else %}<span class="badge b-ok">Normal</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const LOCS=['Anandpuri','Anisabad','Ashok Rajpath','Bailey Road','Bankipore','Boring Canal Road','Boring Road','Danapur','Exhibition Road','Fraser Road','Gandhi Maidan','Gardanibagh','Kankarbagh','Kidwaipuri','Kumhrar','Pataliputra','Patliputra Colony','Phulwari Sharif','Rajendra Nagar','S.K. Puri'];
+const NETS=['3G','4G','5G','LTE'];
+const LOC_DATA={
+  'Anandpuri':{sq:62.5,tp:18.3,lt:95.2,bb:-78.4},'Anisabad':{sq:55,tp:12.8,lt:129.1,bb:-85.2},
+  'Ashok Rajpath':{sq:71.2,tp:24.6,lt:78.4,bb:-72.3},'Bailey Road':{sq:73,tp:15.5,lt:55,bb:-68.9},
+  'Bankipore':{sq:48.3,tp:8.7,lt:162.3,bb:-91.4},'Boring Canal Road':{sq:58.7,tp:14.2,lt:118.6,bb:-82.1},
+  'Boring Road':{sq:65.4,tp:22.1,lt:88.7,bb:-76.8},'Danapur':{sq:44.2,tp:6.3,lt:185.4,bb:-96.3},
+  'Exhibition Road':{sq:69.8,tp:21.4,lt:82.3,bb:-74.2},'Fraser Road':{sq:78.1,tp:35.2,lt:62.5,bb:-68.5},
+  'Gandhi Maidan':{sq:49.2,tp:9.4,lt:194,bb:-93.7},'Gardanibagh':{sq:52.6,tp:11.3,lt:148.2,bb:-88.4},
+  'Kankarbagh':{sq:61.3,tp:17.8,lt:102.4,bb:-80.5},'Kidwaipuri':{sq:43.1,tp:5.9,lt:198.7,bb:-97.2},
+  'Kumhrar':{sq:67.9,tp:20.5,lt:91.3,bb:-75.6},'Pataliputra':{sq:74.5,tp:28.9,lt:71.2,bb:-71.3},
+  'Patliputra Colony':{sq:70.2,tp:25.7,lt:79.6,bb:-73.8},'Phulwari Sharif':{sq:38.4,tp:4.2,lt:215.8,bb:-102.1},
+  'Rajendra Nagar':{sq:72,tp:26.4,lt:75.8,bb:-72.9},'S.K. Puri':{sq:66.8,tp:19.7,lt:98.5,bb:-77.2}
+};
+const GR='rgba(30,45,66,.5)',TC='#5a7290';
+const ctx1=document.getElementById('sigChart').getContext('2d');
+const ctx2=document.getElementById('qChart').getContext('2d');
+const ctx3=document.getElementById('ltChart').getContext('2d');
+const mkChart=(ctx,color,min,max)=>new Chart(ctx,{type:'line',data:{labels:[],datasets:[{data:[],borderColor:color,backgroundColor:color.replace('ff','1a'),borderWidth:2,pointRadius:2.5,tension:0.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:TC,font:{size:10},maxTicksLimit:8},grid:{color:GR}},y:{ticks:{color:TC},grid:{color:GR},min,max}}}});
+const c1=mkChart(ctx1,'#00d4ff',-120,-40);
+const c2=mkChart(ctx2,'#00ff88',0,100);
+const c3=mkChart(ctx3,'#ffaa00',0,280);
+
+let liveLoc=null,alCount=0,rdgs=[];
+const savedLoc=sessionStorage.getItem('cpfd_live_loc');
+if(savedLoc){sessionStorage.removeItem('cpfd_live_loc');setLoc(savedLoc);}
+
+function setLoc(loc){
+  liveLoc=loc;
+  document.getElementById('live-banner').style.display='flex';
+  document.getElementById('live-loc-name').textContent=loc;
+  const d=LOC_DATA[loc]||{};
+  const s=((d.sq||50)/100)*0.35+((d.tp||10)/50)*0.25-((d.lt||120)/250)*0.2+(((d.bb||(-80))+120)/70)*0.2;
+  const nt=s>0.68?'5G':s>0.52?'4G':s>0.38?'LTE':'3G';
+  const cl=nt==='5G'?'b-ok':nt==='4G'?'b-info':nt==='LTE'?'b-warn':'b-danger';
+  document.getElementById('live-loc-nt').textContent=nt;document.getElementById('live-loc-nt').className='badge '+cl;
+  document.getElementById('lk1-lbl').textContent='Signal — '+loc;
+  document.getElementById('chart1-lbl').innerHTML='<i class="fa fa-wave-square"></i> Signal Strength — '+loc;
+  document.getElementById('chart2-lbl').innerHTML='<i class="fa fa-signal"></i> Quality — '+loc;
+  document.getElementById('chart3-lbl').innerHTML='<i class="fa fa-clock"></i> Latency — '+loc;
+  document.getElementById('table-lbl').innerHTML='<i class="fa fa-table"></i> Live Readings — '+loc+' only';
+  document.getElementById('extra-row').style.display='grid';
+  [c1,c2,c3].forEach(c=>{c.data.labels=[];c.data.datasets[0].data=[];c.update();});
+  rdgs=[];alCount=0;document.getElementById('afeed').innerHTML='<p style="color:var(--muted);font-size:.8rem;text-align:center;padding:1rem 0">✓ Monitoring '+loc+' for faults...</p>';
+}
+function clearFilter(){liveLoc=null;document.getElementById('live-banner').style.display='none';document.getElementById('extra-row').style.display='none';document.getElementById('lk1-lbl').textContent='Avg Signal';document.getElementById('chart1-lbl').innerHTML='<i class="fa fa-wave-square"></i> Signal Strength Over Time';document.getElementById('table-lbl').innerHTML='<i class="fa fa-table"></i> Live Cellular Readings';rdgs=[];}
+
+const es=new EventSource('/stream');
+es.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='live_signal')onReading(m.data);if(m.type==='alert')onAlerts(m.data)};
+
+function onReading(r){
+  if(liveLoc&&r.locality!==liveLoc)return;
+  rdgs.push(r);if(rdgs.length>100)rdgs.shift();
+  const push=(c,v)=>{c.data.labels.push(r.timestamp);c.data.datasets[0].data.push(v);if(c.data.labels.length>30){c.data.labels.shift();c.data.datasets[0].data.shift();}c.update('active');};
+  push(c1,r.signal_strength);
+  if(liveLoc){push(c2,r.signal_quality);push(c3,r.latency);}
+  const avg=(key)=>rdgs.reduce((a,x)=>a+x[key],0)/rdgs.length;
+  document.getElementById('lk1').textContent=avg('signal_strength').toFixed(1);
+  document.getElementById('lk2').textContent=avg('latency').toFixed(0);
+  document.getElementById('lk3').textContent=avg('throughput').toFixed(1);
+  document.getElementById('lg1').style.width=Math.max(0,Math.min(100,((avg('signal_strength')+120)/70)*100)).toFixed(0)+'%';
+  document.getElementById('lg2').style.width=Math.max(0,Math.min(100,(avg('latency')/260)*100)).toFixed(0)+'%';
+  document.getElementById('lg3').style.width=Math.max(0,Math.min(100,(avg('throughput')/50)*100)).toFixed(0)+'%';
+  document.getElementById('ts').textContent='Updated '+r.timestamp+(liveLoc?' — '+liveLoc:'');
+  const fs=r.signal_strength<-90?'<span class="badge b-danger">Critical</span>':r.signal_strength<-70?'<span class="badge b-warn">Warning</span>':'<span class="badge b-ok">Normal</span>';
+  document.getElementById('ltbody').insertAdjacentHTML('afterbegin',`<tr style="animation:fi .3s"><td style="font-family:var(--font-mono);font-size:.72rem">${r.timestamp}</td><td>${r.locality}</td><td><span class="badge b-info">${r.network_type}</span></td><td style="font-family:var(--font-mono)">${r.signal_strength}</td><td>${r.signal_quality}%</td><td>${r.throughput} Mbps</td><td>${r.latency} ms</td><td>${fs}</td></tr>`);
+  while(document.getElementById('ltbody').rows.length>20)document.getElementById('ltbody').deleteRow(-1);
+}
+function onAlerts(alerts){
+  if(!alerts||!alerts.length)return;
+  const feed=document.getElementById('afeed');
+  if(feed.querySelector('p'))feed.innerHTML='';
+  alerts.forEach(a=>{
+    alCount++;
+    const c=a.level==='critical';
+    feed.insertAdjacentHTML('afterbegin',`<div class="alert-strip" style="border-left:3px solid ${c?'var(--danger)':'var(--warn)'};background:${c?'rgba(255,61,90,.08)':'rgba(255,170,0,.08)'};color:${c?'#ff8a9b':'#ffc84d'};border-radius:0 5px 5px 0"><div style="width:6px;height:6px;border-radius:50%;background:${c?'var(--danger)':'var(--warn)'};flex-shrink:0"></div><span>${a.message}</span><span style="margin-left:auto;font-size:.68rem;color:var(--muted)">${a.time}</span></div>`);
+    while(feed.children.length>10)feed.removeChild(feed.lastChild);
+  });
+  document.getElementById('abadge').textContent=alCount;
+  document.getElementById('lk4').textContent=alCount;
+  document.getElementById('lg4').style.width=Math.min(100,(alCount/50)*100)+'%';
+}
+async function clrAlerts(){
+  await fetch('/alerts/clear',{method:'POST'});
+  document.getElementById('afeed').innerHTML='<p style="color:var(--muted);font-size:.8rem;text-align:center;padding:1rem 0">✓ No faults detected</p>';
+  alCount=0;document.getElementById('abadge').textContent='0';document.getElementById('lk4').textContent='0';
+}
+const s=document.createElement('style');s.textContent='@keyframes fi{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}';document.head.appendChild(s);
+</script>
+{% endblock %}

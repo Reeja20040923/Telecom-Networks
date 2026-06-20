@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}EDA Analysis{% endblock %}
+{% block content %}
+<div class="ph">
+  <h1><i class="fa fa-chart-bar" style="color:var(--accent)"></i> Exploratory Data Analysis</h1>
+  <p>Cellular Performance &amp; Fault Diagnosis — signal patterns across 21 Patna localities</p>
+</div>
+<div class="infobox">
+  <div class="infobox-title"><i class="fa fa-circle-info"></i> How to read these charts</div>
+  <div class="step"><div class="stepn">1</div><div class="stept"><b>Network Distribution</b> — how many readings fall under each network type (3G/4G/5G/LTE).</div></div>
+  <div class="step"><div class="stepn">2</div><div class="stept"><b>Signal Quality by Locality</b> — average signal quality (%) per area. Longer bar = better coverage.</div></div>
+  <div class="step"><div class="stepn">3</div><div class="stept"><b>Throughput vs Latency</b> — ideal is high throughput with low latency (top-right cluster).</div></div>
+  <div class="step"><div class="stepn">4</div><div class="stept"><b>Device Comparison</b> — average dBm across BB60C, srsRAN, and BladeRFxA9.</div></div>
+</div>
+{% if stats %}
+<div class="krow">
+  <div class="ktile"><div class="klbl">Avg Signal Quality</div><div class="kval">{{stats.get('avg_quality','—')}}<span class="kunit">%</span></div></div>
+  <div class="ktile"><div class="klbl">Avg Throughput</div><div class="kval">{{stats.get('avg_throughput','—')}}<span class="kunit">Mbps</span></div></div>
+  <div class="ktile"><div class="klbl">Avg Latency</div><div class="kval">{{stats.get('avg_latency','—')}}<span class="kunit">ms</span></div></div>
+  <div class="ktile"><div class="klbl">Localities Covered</div><div class="kval">21</div></div>
+</div>
+{% endif %}
+<div class="g2">
+  {% if plots.network_dist %}
+  <div class="card"><div class="card-top"></div>
+    <div class="ct"><i class="fa fa-chart-pie"></i> Network Type Distribution</div>
+    <img src="data:image/png;base64,{{plots.network_dist}}" style="width:100%;border-radius:6px"/>
+  </div>
+  {% endif %}
+  {% if plots.signal_quality %}
+  <div class="card"><div class="card-top"></div>
+    <div class="ct"><i class="fa fa-signal"></i> Signal Quality by Locality</div>
+    <img src="data:image/png;base64,{{plots.signal_quality}}" style="width:100%;border-radius:6px"/>
+  </div>
+  {% endif %}
+</div>
+<div class="g2" style="margin-top:1rem">
+  {% if plots.scatter %}
+  <div class="card"><div class="card-top"></div>
+    <div class="ct"><i class="fa fa-circle-dot"></i> Throughput vs Latency</div>
+    <img src="data:image/png;base64,{{plots.scatter}}" style="width:100%;border-radius:6px"/>
+  </div>
+  {% endif %}
+  {% if plots.device_compare %}
+  <div class="card"><div class="card-top"></div>
+    <div class="ct"><i class="fa fa-microchip"></i> Device Measurement Comparison</div>
+    <img src="data:image/png;base64,{{plots.device_compare}}" style="width:100%;border-radius:6px"/>
+  </div>
+  {% endif %}
+</div>
+{% if not plots %}
+<div class="card"><div class="card-top"></div>
+  <p style="color:var(--muted);text-align:center;padding:2rem">No plots generated. Ensure data is loaded correctly.</p>
+</div>
+{% endif %}
+{% endblock %}

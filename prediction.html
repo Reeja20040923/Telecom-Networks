@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Prediction{% endblock %}
+{% block head %}
+<style>
+.tp{display:none}.tp.on{display:block}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.res-box{background:var(--surface);border:1px solid var(--accent);border-radius:10px;padding:1.5rem;margin-top:1rem;box-shadow:0 0 20px rgba(0,212,255,.07)}
+.csv-prev{overflow-x:auto;margin-top:.75rem;max-height:180px;overflow-y:auto}
+.ins-krow{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin-bottom:.9rem}
+.ins-tile{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:.8rem;text-align:center}
+.ins-val{font-size:1.2rem;font-weight:700;font-family:var(--font-mono);line-height:1}
+.ins-lbl{font-size:.6rem;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
+</style>
+{% endblock %}
+{% block content %}
+<div class="ph">
+  <h1><i class="fa fa-brain" style="color:var(--accent)"></i> Spatially Aware Performance &amp; Fault Prediction</h1>
+  <p>Cellular Performance &amp; Fault Diagnosis — spatially-aware multi-model prediction across Patna localities</p>
+</div>
+<div class="infobox">
+  <div class="infobox-title"><i class="fa fa-circle-info"></i> Prediction Instructions</div>
+  <div class="step"><div class="stepn">1</div><div class="stept"><b>Manual Entry:</b> Select Locality (required) → Click Auto-Fill → all signal values load automatically → Run Prediction.</div></div>
+  <div class="step"><div class="stepn">2</div><div class="stept"><b>CSV Upload:</b> Upload any signal CSV → Select ONE locality from the chips → See fault insights → Click "Watch Live" to monitor in real-time.</div></div>
+  <div class="step"><div class="stepn">3</div><div class="stept">Choose <b>Hybrid CatBoost</b> for best accuracy, <b>Decision Tree</b> for interpretability, <b>Ridge</b> for speed.</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1.35fr 1fr;gap:1.5rem;align-items:start">
+  <div>
+    <div class="tab-row">
+      <button class="tab-btn on" onclick="swTab('manual',this)"><i class="fa fa-keyboard fa-xs"></i> Manual Entry</button>
+      <button class="tab-btn" onclick="swTab('csv',this)"><i class="fa fa-file-csv fa-xs"></i> CSV Upload</button>
+    </div>
+
+    <!-- MANUAL -->
+    <div id="tp-manual" class="tp on card"><div class="card-top"></div>
+      <div class="ct"><i class="fa fa-sliders"></i> Input Signal Measurements</div>
+      <form method="POST" action="/predict">
+        <div class="fg"><label>Model</label>
+          <select name="model">{% for m in models %}<option value="{{m}}" {% if selected_model==m %}selected{% endif %}>{{m}}</option>{% endfor %}</select>
+        </div>
+        <div class="fg"><label>Locality <span style="color:var(--danger)">* required</span></label>
+          <select name="Locality" id="loc-sel" onchange="onLocChange(this)" required>
+            <option value="">— Select locality —</option>
+            {% for loc in localities %}<option value="{{loc}}" {% if sample_data.get('Locality')==loc %}selected{% endif %}>{{loc}}</option>{% endfor %}
+          </select>
+        </div>
+        <button type="button" class="btn-af" id="af-btn" onclick="doAutoFill()" disabled>
+          <span id="af-icon">⬇</span><span id="af-text">Auto-Fill Signal Values for Selected Locality</span>
+        </button>
+        <div class="af-status" id="af-status">
+          <div style="width:7px;height:7px;border-radius:50%;background:var(--accent2);flex-shrink:0"></div>
+          <span id="af-status-text">Values loaded</span>
+        </div>
+        <div style="height:10px"></div>
+        <div style="background:rgba(0,212,255,.04);border:1px solid rgba(0,212,255,.1);border-radius:6px;padding:1rem;margin-bottom:.75rem">
+          <div style="font-size:.65rem;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.75rem">Signal Measurements — auto-filled from locality data</div>
+          <div class="fgrid">
+            <div class="fg"><label>Signal Quality (%)</label><input id="sq" type="number" step="any" name="Signal Quality (%)" placeholder="auto-fills" value="{{sample_data.get('Signal Quality (%)','')}}"/></div>
+            <div class="fg"><label>Throughput (Mbps)</label><input id="tp" type="number" step="any" name="Data Throughput (Mbps)" placeholder="auto-fills" value="{{sample_data.get('Data Throughput (Mbps)','')}}"/></div>
+            <div class="fg"><label>Latency (ms)</label><input id="lt" type="number" step="any" name="Latency (ms)" placeholder="auto-fills" value="{{sample_data.get('Latency (ms)','')}}"/></div>
+            <div class="fg"><label>BB60C (dBm)</label><input id="bb" type="number" step="any" name="BB60C Measurement (dBm)" placeholder="auto-fills" value="{{sample_data.get('BB60C Measurement (dBm)','')}}"/></div>
+            <div class="fg"><label>srsRAN (dBm)</label><input id="sr" type="number" step="any" name="srsRAN Measurement (dBm)" placeholder="auto-fills" value="{{sample_data.get('srsRAN Measurement (dBm)','')}}"/></div>
+            <div class="fg" style="grid-column:span 2"><label>BladeRFxA9 (dBm)</label><input id="bl" type="number" step="any" name="BladeRFxA9 Measurement (dBm)" placeholder="auto-fills" value="{{sample_data.get('BladeRFxA9 Measurement (dBm)','')}}"/></div>
+          </div>
+          <div style="font-size:.68rem;color:var(--muted)">You can edit these values manually after auto-fill if needed.</div>
+        </div>
+        <button type="submit" class="btn btn-p" id="pred-btn" style="width:100%;justify-content:center" disabled><i class="fa fa-bolt"></i> Run Prediction</button>
+      </form>
+    </div>
+
+    <!-- CSV UPLOAD -->
+    <div id="tp-csv" class="tp card"><div class="card-top"></div>
+      <div class="ct"><i class="fa fa-upload"></i> Step 1 — Upload CSV</div>
+      <div style="margin-bottom:.75rem"><label>Model for batch diagnosis</label>
+        <select id="csv-mdl">{% for m in models %}<option>{{m}}</option>{% endfor %}</select>
+      </div>
+      <div class="drop-zone" id="dz" onclick="document.getElementById('cfi').click()">
+        <div style="font-size:1.8rem;margin-bottom:.5rem"><i class="fa fa-file-csv"></i></div>
+        <div id="dz-main" style="font-size:.85rem;color:var(--text);font-weight:500">Click to Browse or Drag &amp; Drop CSV</div>
+        <div id="dz-sub" style="font-size:.72rem;color:var(--muted);margin-top:.3rem">Accepts .csv with signal measurement columns</div>
+      </div>
+      <input type="file" id="cfi" accept=".csv" style="display:none" onchange="handleCSV(this.files[0])"/>
+
+      <div id="loc-select-wrap" style="display:none;margin-top:1rem">
+        <div class="ct" style="color:var(--warn)"><i class="fa fa-location-dot"></i> Step 2 — Select One Locality to Analyse</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem">Localities found in your CSV. Click one to focus on it.</div>
+        <div id="loc-chips"></div>
+      </div>
+
+      <div id="loc-insights" style="display:none;margin-top:1rem">
+        <div class="ct" style="color:var(--accent2)"><i class="fa fa-magnifying-glass-chart"></i> Step 3 — Fault Diagnosis for <span id="sel-loc-name" style="color:var(--accent)">—</span></div>
+        <div class="ins-krow" id="ins-stats"></div>
+        <div class="g2" style="margin-bottom:.9rem">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.9rem">
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem">Signal Quality Trend</div>
+            <div style="position:relative;height:130px"><canvas id="ins-trend"></canvas></div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.9rem">
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem">Predicted Network Types</div>
+            <div style="position:relative;height:130px"><canvas id="ins-pie"></canvas></div>
+          </div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.9rem;margin-bottom:.75rem">
+          <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem">All Records — with Fault Status</div>
+          <div style="overflow-x:auto;max-height:170px;overflow-y:auto"><table id="ins-table"></table></div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.9rem;margin-bottom:.75rem">
+          <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem">Fault Alerts Detected</div>
+          <div id="ins-alerts"></div>
+        </div>
+        <button class="btn btn-success" style="width:100%;justify-content:center" onclick="watchLive()"><i class="fa fa-play"></i> Watch Live Fault Pattern for this Locality</button>
+      </div>
+
+      <div style="margin-top:.9rem;background:var(--bg);border-radius:6px;padding:.75rem;border:1px solid var(--border)">
+        <div style="font-size:.7rem;color:var(--muted);margin-bottom:.35rem;font-weight:500">Required CSV columns:</div>
+        <code style="font-size:.7rem;color:var(--accent2);word-break:break-all;line-height:1.8;display:block">Locality, Latitude, Longitude, Signal Quality (%), Data Throughput (Mbps), Latency (ms), BB60C Measurement (dBm), srsRAN Measurement (dBm), BladeRFxA9 Measurement (dBm)</code>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    {% if predictions %}
+    <div class="card" style="border:1px solid rgba(0,212,255,.25)"><div class="card-top"></div>
+      <div class="ct"><i class="fa fa-check-circle" style="color:var(--accent2)"></i> Spatially Aware Diagnosis Result</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:.75rem">
+        Locality: <b style="color:var(--accent)">{{predictions.locality}}</b> &nbsp;|&nbsp;
+        Lat: <span style="font-family:var(--font-mono);color:var(--muted)">{{predictions.latitude}}</span> &nbsp;
+        Lon: <span style="font-family:var(--font-mono);color:var(--muted)">{{predictions.longitude}}</span>
+      </div>
+
+      <!-- All 3 models side by side -->
+      {% if predictions.all_models %}
+      <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem">All 3 Models — Same Locality, Same Input</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.9rem">
+        {% for mname, mval in predictions.all_models.items() %}
+        <div style="background:var(--surface);border:1px solid {% if mname==selected_model %}var(--accent){% else %}var(--border){% endif %};border-radius:8px;padding:.75rem;text-align:center">
+          <div style="font-size:.6rem;color:var(--muted);margin-bottom:.3rem">{{mname}}</div>
+          <div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:{% if mval=='5G' %}var(--accent2){% elif mval=='4G' %}var(--accent){% elif mval=='LTE' %}var(--warn){% else %}var(--muted){% endif %}">{{mval}}</div>
+          {% if mname==selected_model %}<div style="font-size:.58rem;color:var(--accent);margin-top:.25rem">★ selected</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div style="font-size:.72rem;color:var(--muted)">Predicted Signal Strength</div>
+      <div class="res-big" style="color:var(--accent)">{{predictions.signal_strength}}</div>
+
+      <hr style="border-color:var(--border);margin:.75rem 0">
+      <div class="ct">Signal Input Used</div>
+      {% for k,v in sample_data.items() %}
+        {% if k != 'Locality' %}
+        <div class="mrow"><span style="color:var(--muted)">{{k}}</span><span style="font-family:var(--font-mono);font-size:.75rem">{{v}}</span></div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card"><div class="card-top"></div>
+      <div class="ct"><i class="fa fa-triangle-exclamation" style="color:var(--danger)"></i> Fault Threshold Reference</div>
+      <div class="mrow"><span>No fault — Excellent</span><span class="badge b-ok">&gt; -70 dBm</span></div>
+      <div class="mrow"><span>Minor — Good</span><span class="badge b-info">-70 to -80 dBm</span></div>
+      <div class="mrow"><span>Warning — Fair</span><span class="badge b-warn">-80 to -90 dBm</span></div>
+      <div class="mrow"><span>Critical — Weak</span><span class="badge b-danger">&lt; -90 dBm</span></div>
+    </div>
+    <div class="card" style="margin-top:1rem"><div class="card-top"></div>
+      <div class="ct"><i class="fa fa-robot"></i> Model Guide</div>
+      <div class="mrow"><span>Hybrid CatBoost</span><span class="badge b-ok">Best accuracy</span></div>
+      <div class="mrow"><span>Decision Tree</span><span class="badge b-info">Interpretable</span></div>
+      <div class="mrow"><span>Ridge Classifier</span><span class="badge b-warn">Fastest</span></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const LOC_DATA={
+  'Anandpuri':{sq:62.5,tp:18.3,lt:95.2,bb:-78.4,sr:-77.1,bl:-79.3},
+  'Anisabad':{sq:55.0,tp:12.8,lt:129.1,bb:-85.2,sr:-83.9,bl:-86.1},
+  'Ashok Rajpath':{sq:71.2,tp:24.6,lt:78.4,bb:-72.3,sr:-71.8,bl:-73.5},
+  'Bailey Road':{sq:73.0,tp:15.5,lt:55.0,bb:-68.9,sr:-67.4,bl:-70.2},
+  'Bankipore':{sq:48.3,tp:8.7,lt:162.3,bb:-91.4,sr:-90.2,bl:-92.8},
+  'Boring Canal Road':{sq:58.7,tp:14.2,lt:118.6,bb:-82.1,sr:-81.5,bl:-83.4},
+  'Boring Road':{sq:65.4,tp:22.1,lt:88.7,bb:-76.8,sr:-75.3,bl:-78.1},
+  'Danapur':{sq:44.2,tp:6.3,lt:185.4,bb:-96.3,sr:-94.8,bl:-97.5},
+  'Exhibition Road':{sq:69.8,tp:21.4,lt:82.3,bb:-74.2,sr:-73.1,bl:-75.6},
+  'Fraser Road':{sq:78.1,tp:35.2,lt:62.5,bb:-68.5,sr:-67.9,bl:-69.8},
+  'Gandhi Maidan':{sq:49.2,tp:9.4,lt:194.0,bb:-93.7,sr:-92.1,bl:-95.3},
+  'Gardanibagh':{sq:52.6,tp:11.3,lt:148.2,bb:-88.4,sr:-87.2,bl:-89.6},
+  'Kankarbagh':{sq:61.3,tp:17.8,lt:102.4,bb:-80.5,sr:-79.3,bl:-81.7},
+  'Kidwaipuri':{sq:43.1,tp:5.9,lt:198.7,bb:-97.2,sr:-95.9,bl:-98.4},
+  'Kumhrar':{sq:67.9,tp:20.5,lt:91.3,bb:-75.6,sr:-74.8,bl:-76.9},
+  'Pataliputra':{sq:74.5,tp:28.9,lt:71.2,bb:-71.3,sr:-70.5,bl:-72.4},
+  'Patliputra Colony':{sq:70.2,tp:25.7,lt:79.6,bb:-73.8,sr:-72.4,bl:-74.9},
+  'Phulwari Sharif':{sq:38.4,tp:4.2,lt:215.8,bb:-102.1,sr:-100.7,bl:-103.5},
+  'Rajendra Nagar':{sq:72.0,tp:26.4,lt:75.8,bb:-72.9,sr:-71.6,bl:-74.1},
+  'S.K. Puri':{sq:66.8,tp:19.7,lt:98.5,bb:-77.2,sr:-76.1,bl:-78.5}
+};
+let selectedLoc=null,csvRows=[],insTrend=null,insPie=null;
+
+function swTab(id,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
+  document.getElementById('tp-'+id).classList.add('on');
+}
+function onLocChange(sel){
+  const loc=sel.value;
+  const btn=document.getElementById('af-btn'),pb=document.getElementById('pred-btn');
+  if(loc){btn.disabled=false;btn.style.opacity='1';document.getElementById('af-text').textContent='Auto-Fill for "'+loc+'"';document.getElementById('af-status').classList.remove('show');}
+  else{btn.disabled=true;btn.style.opacity='.4';}
+  pb.disabled=true;
+}
+function doAutoFill(){
+  const loc=document.getElementById('loc-sel').value;if(!loc)return;
+  const btn=document.getElementById('af-btn');
+  btn.disabled=true;btn.innerHTML='<div class="spinner"></div><span>Loading '+loc+'...</span>';
+  setTimeout(()=>{
+    const d=LOC_DATA[loc]||{sq:60,tp:15,lt:120,bb:-80,sr:-79,bl:-81};
+    [['sq',d.sq],['tp',d.tp],['lt',d.lt],['bb',d.bb],['sr',d.sr],['bl',d.bl]].forEach(([id,v],i)=>{
+      setTimeout(()=>{const el=document.getElementById(id);el.value=v.toFixed(1);el.classList.add('autofilled');},i*120);
+    });
+    setTimeout(()=>{
+      btn.disabled=false;btn.innerHTML='<span>✓</span><span>Loaded — '+loc+'</span>';
+      btn.style.background='rgba(0,255,136,.12)';btn.style.color='var(--accent2)';btn.style.borderColor='rgba(0,255,136,.3)';
+      document.getElementById('af-status-text').textContent='All 6 values loaded for '+loc;
+      document.getElementById('af-status').classList.add('show');
+      document.getElementById('pred-btn').disabled=false;
+    },800);
+  },1200);
+}
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f&&f.name.endsWith('.csv'))handleCSV(f);else alert('Please drop a .csv file.');});
+function handleCSV(file){
+  dz.classList.add('has-file');
+  document.getElementById('dz-main').textContent=file.name;
+  document.getElementById('dz-main').style.color='var(--accent2)';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.trim().split('\n');
+    const headers=lines[0].split(',').map(h=>h.trim());
+    csvRows=lines.slice(1).map(l=>{const v=l.split(',');const r={};headers.forEach((h,i)=>r[h]=(v[i]||'').trim());return r;}).filter(r=>Object.values(r).some(x=>x));
+    document.getElementById('dz-sub').textContent=csvRows.length+' records loaded — select a locality below';
+    const locs=[...new Set(csvRows.map(r=>r['Locality']).filter(Boolean))].sort();
+    const chips=document.getElementById('loc-chips');chips.innerHTML='';
+    locs.forEach(loc=>{
+      const c=document.createElement('span');c.className='loc-chip';
+      c.textContent=loc+' ('+csvRows.filter(r=>r['Locality']===loc).length+')';
+      c.onclick=()=>{document.querySelectorAll('.loc-chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');selectedLoc=loc;showInsights(loc);};
+      chips.appendChild(c);
+    });
+    document.getElementById('loc-select-wrap').style.display='block';
+    document.getElementById('loc-insights').style.display='none';
+  };
+  reader.readAsText(file);
+}
+function pRow(row){
+  const sq=parseFloat(row['Signal Quality (%)'])||50,tp=parseFloat(row['Data Throughput (Mbps)'])||10;
+  const lt=parseFloat(row['Latency (ms)'])||120,bb=parseFloat(row['BB60C Measurement (dBm)'])||-80;
+  const sr=parseFloat(row['srsRAN Measurement (dBm)'])||-79,bl=parseFloat(row['BladeRFxA9 Measurement (dBm)'])||-81;
+  const s=(sq/100)*0.35+(tp/50)*0.25-(lt/250)*0.2+((bb+120)/70)*0.2;
+  return{nt:s>0.68?'5G':s>0.52?'4G':s>0.38?'LTE':'3G',ss:(bb*0.38+sr*0.33+bl*0.29+sq*0.06-lt*0.04+tp*0.12).toFixed(1)};
+}
+function showInsights(loc){
+  const rows=csvRows.filter(r=>r['Locality']===loc);if(!rows.length)return;
+  document.getElementById('loc-insights').style.display='block';
+  document.getElementById('sel-loc-name').textContent=loc;
+  const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;
+  const sqV=rows.map(r=>parseFloat(r['Signal Quality (%)'])||0);
+  const tpV=rows.map(r=>parseFloat(r['Data Throughput (Mbps)'])||0);
+  const ltV=rows.map(r=>parseFloat(r['Latency (ms)'])||0);
+  const bbV=rows.map(r=>parseFloat(r['BB60C Measurement (dBm)'])||0);
+  const as=avg(sqV),at=avg(tpV),al=avg(ltV),ab=avg(bbV);
+  const sc=as>70?'#00ff88':as>45?'#ffaa00':'#ff3d5a';
+  const lc=al<100?'#00ff88':al<180?'#ffaa00':'#ff3d5a';
+  document.getElementById('ins-stats').innerHTML=`
+    <div class="ins-tile"><div class="ins-val" style="color:${sc}">${as.toFixed(1)}%</div><div class="ins-lbl">Avg Quality</div></div>
+    <div class="ins-tile"><div class="ins-val" style="color:#00d4ff">${at.toFixed(1)}</div><div class="ins-lbl">Avg Mbps</div></div>
+    <div class="ins-tile"><div class="ins-val" style="color:${lc}">${al.toFixed(0)}</div><div class="ins-lbl">Avg ms</div></div>
+    <div class="ins-tile"><div class="ins-val" style="color:#5a7290">${ab.toFixed(1)}</div><div class="ins-lbl">Avg dBm</div></div>`;
+  const GR='rgba(30,45,66,.5)',TC='#5a7290';
+  if(insTrend)insTrend.destroy();
+  insTrend=new Chart(document.getElementById('ins-trend'),{type:'line',data:{labels:rows.map((_,i)=>'R'+(i+1)),datasets:[{data:sqV,borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,.08)',borderWidth:2,pointRadius:2,tension:0.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:TC,font:{size:9},maxTicksLimit:8},grid:{color:GR}},y:{ticks:{color:TC},grid:{color:GR},min:0,max:100}}}});
+  const preds=rows.map(r=>pRow(r));
+  const ntC={};preds.forEach(p=>{ntC[p.nt]=(ntC[p.nt]||0)+1;});
+  if(insPie)insPie.destroy();
+  insPie=new Chart(document.getElementById('ins-pie'),{type:'doughnut',data:{labels:Object.keys(ntC),datasets:[{data:Object.values(ntC),backgroundColor:['#00d4ff','#00ff88','#ffaa00','#ff3d5a'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:TC,font:{size:9}}}}}});
+  document.getElementById('ins-table').innerHTML='<tr><th>#</th><th>Quality</th><th>Throughput</th><th>Latency</th><th>BB60C</th><th>Pred.Type</th><th>Pred.Signal</th><th>Fault</th></tr>'+
+    rows.map((r,i)=>{const p=pRow(r);const cl=p.nt==='5G'?'b-ok':p.nt==='4G'?'b-info':'b-warn';const sq=parseFloat(r['Signal Quality (%)']||0),lt=parseFloat(r['Latency (ms)']||0);const fault=sq<40||lt>180?'<span class="badge b-danger">Fault</span>':'<span class="badge b-ok">OK</span>';return`<tr><td style="color:#5a7290">${i+1}</td><td>${sq.toFixed(1)}%</td><td>${parseFloat(r['Data Throughput (Mbps)']||0).toFixed(1)} Mbps</td><td>${lt.toFixed(0)} ms</td><td style="font-family:monospace">${parseFloat(r['BB60C Measurement (dBm)']||0).toFixed(1)}</td><td><span class="badge ${cl}">${p.nt}</span></td><td style="color:#00d4ff;font-family:monospace">${p.ss} dBm</td><td>${fault}</td></tr>`;}).join('');
+  const weak=rows.filter(r=>parseFloat(r['Signal Quality (%)']||100)<40),highLat=rows.filter(r=>parseFloat(r['Latency (ms)']||0)>180);
+  let html='';
+  if(weak.length)html+=`<div class="alert-strip" style="border-left:3px solid var(--danger);background:rgba(255,61,90,.08);color:#ff8a9b;border-radius:0 5px 5px 0"><div style="width:6px;height:6px;border-radius:50%;background:var(--danger);flex-shrink:0"></div><span>${weak.length} record(s) with signal quality below 40% — critical fault detected</span></div>`;
+  if(highLat.length)html+=`<div class="alert-strip" style="border-left:3px solid var(--warn);background:rgba(255,170,0,.08);color:#ffc84d;border-radius:0 5px 5px 0"><div style="width:6px;height:6px;border-radius:50%;background:var(--warn);flex-shrink:0"></div><span>${highLat.length} record(s) with latency above 180ms — performance degradation detected</span></div>`;
+  if(!html)html='<div style="font-size:.78rem;color:var(--accent2);padding:.5rem 0">✓ No faults detected for '+loc+'</div>';
+  document.getElementById('ins-alerts').innerHTML=html;
+}
+function watchLive(){
+  if(!selectedLoc){alert('Please select a locality first.');return;}
+  sessionStorage.setItem('cpfd_live_loc',selectedLoc);
+  window.location.href='/dashboard';
+}
+</script>
+{% endblock %}
